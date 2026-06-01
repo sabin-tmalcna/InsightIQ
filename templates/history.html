@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Analysis History - InsightIQ Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/dashboard" class="logo">InsightIQ Pro</a>
+            <div class="nav-links">
+                <span>{{ current_user.username }}</span>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>Analysis History</h1>
+        {% if analyses %}
+            <table class="history-table">
+                <thead>
+                    <tr><th>Filename</th><th>Uploaded</th><th>Saved</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for analysis in analyses %}
+                    <tr>
+                        <td>{{ analysis.original_filename }}</td>
+                        <td>{{ analysis.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ "Yes" if analysis.is_saved else "No" }}</td>
+                        <td>
+                            <a href="/analysis/{{ analysis.id }}" class="btn btn-sm">View</a>
+                            <form action="/delete_analysis/{{ analysis.id }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this analysis?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No analyses found. <a href="/dashboard">Upload your first dataset</a>.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

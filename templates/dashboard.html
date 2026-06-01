@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - InsightIQ Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/dashboard" class="logo">InsightIQ Pro</a>
+            <div class="nav-links">
+                <span>Welcome, {{ current_user.username }}</span>
+                <a href="/history">History</a>
+                <a href="/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="dashboard-header">
+            <h1>Your Dashboard</h1>
+            <div class="upload-card">
+                <h3>Upload New Dataset</h3>
+                <form action="/upload" method="POST" enctype="multipart/form-data">
+                    <input type="file" name="file" accept=".csv,.xlsx,.xls" required>
+                    <button type="submit" class="btn btn-primary">Analyze</button>
+                </form>
+            </div>
+        </div>
+
+        {% if kpi_data %}
+        <div class="kpi-section">
+            <h2>Quick Stats (Latest Analysis)</h2>
+            <div class="kpi-grid">
+                <div class="kpi-card">Rows: {{ kpi_data.rows }}</div>
+                <div class="kpi-card">Columns: {{ kpi_data.columns }}</div>
+                <div class="kpi-card">Numeric: {{ kpi_data.numeric_cols }}</div>
+                <div class="kpi-card">Missing: {{ kpi_data.missing }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="recent-analyses">
+            <h2>Recent Analyses</h2>
+            {% if analyses %}
+                <div class="analysis-list">
+                    {% for analysis in analyses %}
+                    <div class="analysis-item">
+                        <span class="filename">{{ analysis.original_filename }}</span>
+                        <span class="date">{{ analysis.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        <a href="/analysis/{{ analysis.id }}" class="btn btn-sm">View Report</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>No analyses yet. Upload your first dataset above.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

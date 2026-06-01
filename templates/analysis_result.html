@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Analysis Result - InsightIQ Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .tab { overflow: hidden; border-bottom: 1px solid #ccc; margin-bottom: 20px; }
+        .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 10px 20px; transition: 0.3s; font-size: 16px; }
+        .tab button:hover { background-color: #ddd; }
+        .tab button.active { background-color: #3498db; color: white; }
+        .tabcontent { display: none; padding: 20px 0; }
+        .card-grid { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 25px; }
+        .stat-card { background: #f8f9fa; border-radius: 8px; padding: 15px; flex: 1; min-width: 120px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stat-card h4 { margin: 0 0 5px 0; color: #2c3e50; }
+        .stat-card .value { font-size: 24px; font-weight: bold; color: #3498db; }
+        .data-table { width: 100%; border-collapse: collapse; margin: 15px 0; background: white; }
+        .data-table th, .data-table td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
+        .data-table th { background: #3498db; color: white; }
+        .chart-container { margin: 20px 0; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .cluster-info { background: #eef2f3; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/dashboard" class="logo">InsightIQ Pro</a>
+            <div class="nav-links">
+                <span>{{ current_user.username }}</span>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="analysis-header">
+            <h1>Analysis: {{ analysis.original_filename }}</h1>
+            <div>
+                <form action="/save_report/{{ analysis.id }}" method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-secondary">Save Report</button>
+                </form>
+                <a href="/export_pdf/{{ analysis.id }}" class="btn btn-primary">Export PDF</a>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab">
+            <button class="tablinks active" onclick="openTab(event, 'Overview')">Overview</button>
+            <button class="tablinks" onclick="openTab(event, 'Advanced')">Advanced Analytics</button>
+            <button class="tablinks" onclick="openTab(event, 'Chat')">Q&A Chat</button>
+        </div>
+
+        <!-- Tab 1: Overview (unchanged) -->
+        <div id="Overview" class="tabcontent" style="display:block;">
+            <div class="insights-panel">
+                <h2>Executive Summary</h2>
+                <p>{{ analysis.summary_text }}</p>
+                <h2>KPI Insights</h2>
+                <p>{{ analysis.kpi_insights }}</p>
+                <h2>Business Recommendations</h2>
+                <p>{{ analysis.recommendations }}</p>
+            </div>
+            <div class="stats-panel">
+                <h2>Dataset Summary</h2>
+                <table class="stats-table">
+                    <tr><th>Rows</th><td>{{ summary.rows }}</td></tr>
+                    <tr><th>Columns</th><td>{{ summary.columns }}</td></tr>
+                    <tr><th>Numeric Columns</th><td>{{ summary.numeric_cols }}</td></tr>
+                    <tr><th>Categorical Columns</th><td>{{ summary.categorical_cols }}</td></tr>
+                    <tr><th>Missing Values</th><td>{{ summary.missing_values }}</td></tr>
+                    <tr><th>Duplicate Rows</th><td>{{ summary.duplicate_rows }}</td></tr>
+                </table>
+            </div>
+            <div class="charts-panel">
+                <h2>Interactive Charts</h2>
+                {% for name, html in charts_data.items() %}
+                    <div class="chart-container">{{ html|safe }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Tab 2: Advanced Analytics (Improved Presentation) -->
+        <div id="Advanced" class="tabcontent">
+            <h2>Data Profiling</h2>
+            <div id="profile-content">Loading profile...</div>
+            <button class="btn btn-secondary btn-sm" onclick="loadProfile()">Refresh Profile</button>
+            <hr>
+
+            <h2>Clustering (K-Means)</h2>
+            <div id="clustering-content">Click "Run Clustering" to segment your data.</div>
+            <button class="btn btn-primary btn-sm" onclick="runClustering()">Run Clustering</button>
+            <hr>
+
+            <h2>Forecasting (Linear Regression)</h2>
+            <div style="background:#f4f4f4; padding:12px; border-radius:5px; margin-bottom:10px;">
+                <label>Target Column: 
+                    <select id="target-col">
+                        {% for col in stats.keys() %}
+                            <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label style="margin-left:15px;">Periods: <input type="number" id="periods" value="3" min="1" max="12" style="width:60px;"></label>
+                <button class="btn btn-primary btn-sm" onclick="runForecast()" style="margin-left:15px;">Generate Forecast</button>
+            </div>
+            <div id="forecast-content"></div>
+        </div>
+
+        <!-- Tab 3: Chat (unchanged) -->
+        <div id="Chat" class="tabcontent">
+            <div class="chat-panel">
+                <h2>Ask Questions About This Dataset</h2>
+                <div id="chat-messages" style="height: 300px; overflow-y: auto; border:1px solid #ccc; padding:10px; margin-bottom:10px; background:white;"></div>
+                <input type="text" id="chat-question" placeholder="e.g., any anomalies? show me outliers" style="width:80%; padding:8px;">
+                <button id="chat-send" class="btn btn-primary">Ask</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const analysisId = {{ analysis.id }};
+
+        // Tab switching
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) tabcontent[i].style.display = "none";
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) tablinks[i].className = tablinks[i].className.replace(" active", "");
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+            if (tabName === 'Advanced') loadProfile(); // auto-load when tab opens
+        }
+
+        // ---------- Data Profiling (Beautiful Cards + Tables) ----------
+        function loadProfile() {
+            fetch(`/profile/${analysisId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('profile-content');
+                    let html = `<div class="card-grid">
+                        <div class="stat-card"><h4>Rows</h4><div class="value">${data.basic.rows}</div></div>
+                        <div class="stat-card"><h4>Columns</h4><div class="value">${data.basic.columns}</div></div>
+                        <div class="stat-card"><h4>Duplicates</h4><div class="value">${data.basic.duplicates}</div></div>
+                        <div class="stat-card"><h4>Missing Cells</h4><div class="value">${data.basic.missing_cells}</div></div>
+                    </div>`;
+                    
+                    // Numeric Stats Table
+                    html += `<h3>Numeric Columns Statistics</h3><table class="data-table"><thead><tr><th>Column</th><th>Min</th><th>Max</th><th>Mean</th><th>Std</th><th>Missing</th></tr></thead><tbody>`;
+                    for (const [col, stats] of Object.entries(data.numeric_stats)) {
+                        html += `<tr><td>${col}</td><td>${stats.min.toFixed(2)}</td><td>${stats.max.toFixed(2)}</td><td>${stats.mean.toFixed(2)}</td><td>${stats.std.toFixed(2)}</td><td>${stats.missing}</td></tr>`;
+                    }
+                    html += `</tbody></table>`;
+                    
+                    // Categorical Stats
+                    if (Object.keys(data.categorical_stats).length) {
+                        html += `<h3>Categorical Columns (Top Values)</h3><table class="data-table"><thead><tr><th>Column</th><th>Top Values</th><th>Unique Count</th></tr></thead><tbody>`;
+                        for (const [col, stats] of Object.entries(data.categorical_stats)) {
+                            let top = Object.entries(stats.top_values).map(([k,v]) => `${k}: ${v}`).join(', ');
+                            html += `<tr><td>${col}</td><td>${top}</td><td>${stats.unique}</td></tr>`;
+                        }
+                        html += `</tbody></table>`;
+                    }
+                    container.innerHTML = html;
+                })
+                .catch(err => { console.error(err); document.getElementById('profile-content').innerHTML = '<p style="color:red;">Failed to load profile.</p>'; });
+        }
+
+        // ---------- Clustering (Table + Cluster Size Chart) ----------
+        function runClustering() {
+            fetch(`/cluster/${analysisId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('clustering-content');
+                    if (data.error) {
+                        container.innerHTML = `<p style="color:red;">${data.error}</p>`;
+                        return;
+                    }
+                    // Build centers table
+                    let html = `<div class="cluster-info"><strong>Inertia (within-cluster sum of squares):</strong> ${data.inertia.toFixed(2)}</div>`;
+                    html += `<h4>Cluster Centers</h4><table class="data-table"><thead><tr><th>Cluster</th>`;
+                    const firstCenter = Object.values(data.centers)[0];
+                    for (let col of Object.keys(firstCenter)) html += `<th>${col}</th>`;
+                    html += `</tr></thead><tbody>`;
+                    for (let [cluster, center] of Object.entries(data.centers)) {
+                        html += `<tr><td>${cluster}</td>`;
+                        for (let val of Object.values(center)) html += `<td>${val.toFixed(2)}</td>`;
+                        html += `</tr>`;
+                    }
+                    html += `</tbody></table>`;
+                    
+                    // Cluster sizes
+                    const labelCounts = {};
+                    data.labels.forEach(l => { labelCounts[l] = (labelCounts[l] || 0) + 1; });
+                    const sizes = Object.values(labelCounts);
+                    const clusterNames = Object.keys(labelCounts).map(c => `Cluster ${c}`);
+                    
+                    // Create bar chart for cluster sizes using Plotly
+                    const chartId = 'cluster-size-chart';
+                    html += `<div id="${chartId}" class="chart-container" style="height:400px;"></div>`;
+                    container.innerHTML = html;
+                    Plotly.newPlot(chartId, [{
+                        x: clusterNames,
+                        y: sizes,
+                        type: 'bar',
+                        marker: { color: '#3498db' }
+                    }], {
+                        title: 'Number of Records per Cluster',
+                        xaxis: { title: 'Cluster' },
+                        yaxis: { title: 'Count' }
+                    });
+                })
+                .catch(err => { console.error(err); document.getElementById('clustering-content').innerHTML = '<p style="color:red;">Clustering failed.</p>'; });
+        }
+
+        // ---------- Forecasting (Plotly Line Chart) ----------
+        function runForecast() {
+            const target = document.getElementById('target-col').value;
+            const periods = document.getElementById('periods').value;
+            if (!target) { alert('Select a target column'); return; }
+            fetch(`/forecast/${analysisId}?target=${encodeURIComponent(target)}&periods=${periods}`)
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('forecast-content');
+                    if (data.error) {
+                        container.innerHTML = `<p style="color:red;">${data.error}</p>`;
+                        return;
+                    }
+                    // Fetch historical data for the same target (we need to get actuals from original dataset)
+                    // We'll make an extra call to the profile endpoint to get historical? Or we already have stats but not full series.
+                    // For simplicity, we'll just display the forecast values as a line chart without historical.
+                    // But better: we could add a simple placeholder or request actuals from a new endpoint.
+                    // For now, show forecast as a simple bar/line.
+                    const dates = data.forecast_dates;
+                    const values = data.forecast_values;
+                    const chartId = 'forecast-chart';
+                    let html = `<div><strong>Forecast for ${data.target}</strong> (R² = ${data.r2.toFixed(3)})</div>`;
+                    html += `<div id="${chartId}" class="chart-container" style="height:400px;"></div>`;
+                    container.innerHTML = html;
+                    Plotly.newPlot(chartId, [{
+                        x: dates,
+                        y: values,
+                        mode: 'lines+markers',
+                        type: 'scatter',
+                        line: { color: '#e74c3c', width: 3 },
+                        marker: { size: 8 }
+                    }], {
+                        title: `${data.target} - Next ${periods} Periods Forecast`,
+                        xaxis: { title: 'Date' },
+                        yaxis: { title: data.target }
+                    });
+                })
+                .catch(err => { console.error(err); document.getElementById('forecast-content').innerHTML = '<p style="color:red;">Forecast failed.</p>'; });
+        }
+
+        // Chat functionality (unchanged)
+        document.getElementById('chat-send').addEventListener('click', function() {
+            const question = document.getElementById('chat-question').value.trim();
+            if (!question) return;
+            const messagesDiv = document.getElementById('chat-messages');
+            messagesDiv.innerHTML += `<div><strong>You:</strong> ${question}</div>`;
+            fetch('/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question: question, analysis_id: analysisId})
+            })
+            .then(res => res.json())
+            .then(data => {
+                messagesDiv.innerHTML += `<div><strong>AI:</strong> ${data.answer}</div>`;
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            })
+            .catch(err => console.error('Chat error:', err));
+            document.getElementById('chat-question').value = '';
+        });
+    </script>
+</body>
+</html>
